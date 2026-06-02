@@ -5,12 +5,15 @@
  * writes the vault** — is verified by a static scan of the whole source tree
  * (`main.ts` + `src/`). A live Obsidian load is the manual verification.
  *
- * Ported 1:1 from the monorepo's `tests/test_obsidian_plugin.py` so the proof
- * lives where the code lives (R10). Keeping the scan target and the allowlist
- * location in lockstep with the code is the read-only mitigation: the proof must
- * not silently regress as code moves between modules. The same `scanForbidden`
- * helper used against the real source is exercised against synthetic fixtures
- * below, so the guard is proven to bite (not merely to pass).
+ * Hardened port of the monorepo's former `tests/test_obsidian_plugin.py` so the
+ * proof lives where the code lives (R10) — broadened to scan the whole `src/`
+ * tree (not just `main.ts`), pin the current 3-tool allowlist, and add the
+ * editor/CodeMirror, UI-guideline, hardcoded-IP, and empty-URL groups. Keeping
+ * the scan target and the allowlist location in lockstep with the code is the
+ * read-only mitigation: the proof must not silently regress as code moves
+ * between modules. The same `scanForbidden` helper used against the real source
+ * is exercised against synthetic fixtures below, so the guard is proven to bite
+ * (not merely to pass).
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
@@ -82,12 +85,32 @@ const EDITOR_CM_WRITES = [
   "fileManager.renameFile(",
 ];
 
+// Receiver-AGNOSTIC write forms: matched as bare `.method(` because no read-only
+// Obsidian/DOM/JS API shares these names. This hardens the proof against a
+// future refactor that aliases the receiver (e.g. `const v = this.app.vault;
+// v.modify(f, b)` or `const ed = view.editor; ed.setLine(...)`), which the
+// receiver-qualified lists above would miss. Forms whose bare suffix collides
+// with a legitimate read API (`.delete(` Set/Map, `.remove(` DOM, `.append(`,
+// `.create(`, `.dispatch(` CM read, `.setValue(` Setting) stay qualified above.
+const RECEIVER_AGNOSTIC_WRITES = [
+  ".modify(",
+  ".replaceRange(",
+  ".replaceSelection(",
+  ".setLine(",
+  ".processFrontMatter(",
+  ".createBinary(",
+  ".renameFile(",
+];
+
 const UI_GUIDELINE_VIOLATIONS = [
   ".innerHTML",
   ".outerHTML",
   ".insertAdjacentHTML(",
   "console.log(",
   "console.debug(",
+  "console.info(",
+  "console.warn(",
+  "console.error(",
 ];
 
 describe("read-only proof — real source", () => {
@@ -110,6 +133,10 @@ describe("read-only proof — real source", () => {
 
   it("group 3: performs no editor / CodeMirror mutations", () => {
     expect(scanForbidden(allSources(), EDITOR_CM_WRITES)).toEqual([]);
+  });
+
+  it("group 3b: no receiver-agnostic write forms (aliasing-resistant)", () => {
+    expect(scanForbidden(allSources(), RECEIVER_AGNOSTIC_WRITES)).toEqual([]);
   });
 
   it("group 4: reference surface imports no CodeMirror editor module", () => {
@@ -189,6 +216,16 @@ describe("read-only proof — guard bites (deliberately-failing fixtures)", () =
     expect(scanForbidden(fixture, UI_GUIDELINE_VIOLATIONS)).toContain(
       "fixture.ts:.innerHTML",
     );
+  });
+
+  it("catches an aliased-receiver vault write the qualified lists would miss", () => {
+    // `const v = this.app.vault; v.modify(...)` evades `vault.modify(` but not
+    // the bare `.modify(` form.
+    const fixture = { "fixture.ts": "const v = this.app.vault;\nawait v.modify(file, body);" };
+    expect(scanForbidden(fixture, VAULT_WRITES)).toEqual([]); // qualified list misses it
+    expect(scanForbidden(fixture, RECEIVER_AGNOSTIC_WRITES)).toContain(
+      "fixture.ts:.modify(",
+    ); // hardened list catches it
   });
 
   it("edge case: prose mentions of the API names (no trailing paren) do NOT trip", () => {
