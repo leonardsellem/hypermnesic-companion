@@ -15,7 +15,11 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        # Node 24 only: the committed lockfile resolves vitest's optional
+        # vite->esbuild dedupe in a way npm 11 (bundled with Node 24) accepts but
+        # npm 10 (Node 20/22) rejects under `npm ci`. Pinning to npm 11 keeps the
+        # v0.3.0 build deps untouched. See README/handoff for the regen option.
+        node-version: [24.x]
 
     steps:
       - uses: actions/checkout@v6
