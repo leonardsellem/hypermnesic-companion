@@ -1,0 +1,46 @@
+name: Release
+
+# Obsidian installs from a GitHub release whose tag exactly equals the
+# manifest "version" (no leading "v" — see .npmrc tag-version-prefix="").
+# `npm version <x.y.z>` runs version-bump.mjs (manifest + versions.json) and
+# creates that tag; pushing it triggers this workflow.
+on:
+  push:
+    tags:
+      - '*'
+
+# Least privilege: creating the release and uploading assets is all this needs.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Build plugin
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check for optional styles
+        id: styles
+        run: |
+          [ -f styles.css ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - name: Create release with individual assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" \
+            --title="$tag" \
+            --draft \
+            main.js manifest.json ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
