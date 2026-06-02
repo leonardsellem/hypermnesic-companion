@@ -1,8 +1,8 @@
-# hypermnesic companion (Obsidian plugin)
+# Hypermnesic Companion (Obsidian plugin)
 
-A strictly **read-only**, **desktop** Obsidian plugin: a calm recall surface over
-your tailnet **hypermnesic** index. As you write, it surfaces related notes and a
-checkable "you may be reinventing this" nudge — and it **never writes your vault**.
+Surface read-only, pause-triggered related notes and an interrogable reinvention
+nudge from your tailnet **hypermnesic** index as you write — a calm, **desktop**
+recall surface that **never writes your vault**.
 
 ## What it does
 
@@ -35,9 +35,22 @@ allowlist (`src/core.ts`) of the read tools — **`search` / `build_context` /
 adapter writes. The write tool (`commit_note`) is registered only on a
 write-enabled master and is structurally unreachable from here; any write you
 choose to make flows through an agent calling that gated tool, never this plugin.
-It also retains no note text between queries. The Python suite
-(`tests/test_obsidian_plugin.py`) statically verifies the allowlist and the
-no-write guarantee.
+It also retains no note text between queries. The vitest suite
+(`test/read-only.test.ts`) statically verifies the allowlist and the no-write
+guarantee on every push, so the invariant cannot silently regress.
+
+## Requires the hypermnesic engine
+
+The companion is a **read-only client** — it has nothing to talk to on its own.
+You self-host the **hypermnesic engine**, which serves your index over your
+tailnet via MCP (JSON-RPC over HTTP), and point the plugin at it.
+
+- **Engine:** [`leonardsellem/hypermnesic`](https://github.com/leonardsellem/hypermnesic)
+  — open source under **AGPL-3.0**. Install and run it per its README, then copy
+  its `serve` endpoint into this plugin's settings.
+
+The plugin (GPL-3.0) and the engine (AGPL-3.0) talk only at arm's length over
+the MCP wire protocol; neither is a derivative of the other.
 
 ## Network use & privacy (please read)
 
@@ -53,19 +66,28 @@ provisioned `--role=client` install pre-fills the URL; a manual install starts
 empty until you fill it in. The index itself lives on your own master over the
 tailnet; the companion only reads it.
 
+> **Security note — keep the endpoint on your tailnet.** The hypermnesic engine
+> has **no built-in token/bearer authentication**; it relies on Tailscale network
+> trust. Pointing this plugin at a **non-tailnet URL** (or exposing the engine on
+> a public interface) removes all access control and lets **any host that can
+> reach that URL** read your vault index. Configure only a Tailscale address.
+
 ## Build & install (manual, desktop)
 
 ```bash
-cd obsidian-plugin
 npm install
 npm run build          # esbuild main.ts (+ src/) -> main.js
 # copy manifest.json + main.js + styles.css into
 #   <vault>/.obsidian/plugins/hypermnesic-companion/
 ```
 
-Then enable **hypermnesic companion** in Obsidian → Community plugins, open its
+Then enable **Hypermnesic Companion** in Obsidian → Community plugins, open its
 settings, and set the **Tailnet MCP URL** to your hypermnesic `serve` endpoint (a
 Tailscale address). Until you do, nothing is sent off-device.
+
+## License
+
+GPL-3.0-or-later. See [`LICENSE`](LICENSE).
 
 ## Known gaps (deferred)
 
@@ -74,5 +96,3 @@ Tailscale address). Until you do, nothing is sent off-device.
   `isDesktopOnly`.
 - **MCP OAuth in the plugin** — only the protocol-handler seam is left here; the
   implementation lands with the engine OAuth work.
-- **Community-plugin submission** — would need a sample-scaffolding strip and a
-  submission pass (the network/account disclosure above is already done).

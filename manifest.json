@@ -1,9 +1,10 @@
 {
-  "id": "hypermnesic-companion",
-  "name": "hypermnesic companion",
-  "version": "0.3.0",
-  "minAppVersion": "1.5.0",
-  "description": "A strictly read-only recall surface over your tailnet hypermnesic index: calm, pause-triggered related notes, thinking-mode, and an interrogable reinvention nudge. Never writes the vault.",
-  "author": "Leonard Sellem",
-  "isDesktopOnly": true
+	"id": "hypermnesic-companion",
+	"name": "Hypermnesic Companion",
+	"version": "0.3.0",
+	"minAppVersion": "1.5.0",
+	"description": "Surface read-only, pause-triggered related notes and an interrogable reinvention nudge from your tailnet hypermnesic index as you write. Never writes the vault.",
+	"author": "Leonard Sellem",
+	"authorUrl": "https://github.com/leonardsellem",
+	"isDesktopOnly": true
 }
