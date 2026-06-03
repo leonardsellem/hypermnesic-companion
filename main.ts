@@ -87,9 +87,13 @@ export default class HypermnesicPlugin extends Plugin {
   snapshot: StateSnapshot = this.machine.snapshot;
 
   private statusBar: StatusBarSurface | null = null;
+  /** The MCP URL the open thinking panel was last probed against; an actual change
+   *  (not a slider nudge) resets the panel so two engines can't mix (R27, KTD5). */
+  private lastMcpUrl = "";
 
   async onload(): Promise<void> {
     await this.loadPersisted();
+    this.lastMcpUrl = this.settings.mcpUrl;
 
     this.core = new RetrievalCore({
       getUrl: () => this.settings.mcpUrl,
@@ -221,6 +225,9 @@ export default class HypermnesicPlugin extends Plugin {
     return {
       getUrl: () => this.settings.mcpUrl,
       hasThink: () => this.core.capabilities.hasThink,
+      thinkAcceptsPath: () => this.core.capabilities.thinkAcceptsPath,
+      probed: () => this.core.probed,
+      probeReady: () => this.core.probeReady(),
       rowDeps: this.renderDeps,
     };
   }
@@ -364,8 +371,24 @@ export default class HypermnesicPlugin extends Plugin {
    *  visible result so ranking sliders (staleness weight, half-life) and the nudge
    *  threshold apply live without a reload (R18, AE4). */
   onSettingsChanged(): void {
+    // The reset must fire only on a real engine change: onSettingsChanged runs on
+    // every settings edit (slider drags included), so gate the panel reset on an
+    // actual mcpUrl change — back/deepen must never mix two engines' corpora and
+    // the path capability must not silently flip (R27, KTD5). The re-probe stays
+    // unconditional.
+    const urlChanged = this.settings.mcpUrl !== this.lastMcpUrl;
+    this.lastMcpUrl = this.settings.mcpUrl;
     void this.core.probe();
+    if (urlChanged) this.resetThinkingPanels();
     void this.reapplyRanking();
+  }
+
+  /** Clear any open thinking panel to idle on an engine-URL change (R27, KTD5). */
+  private resetThinkingPanels(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(THINKING_VIEW_TYPE)) {
+      const view = leaf.view;
+      if (view instanceof ThinkingView) view.resetForEngineChange();
+    }
   }
 
   /** Re-run the pipeline for the last query (a block-cache hit — no new MCP call)

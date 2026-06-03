@@ -20,6 +20,7 @@ import {
   setIcon,
 } from "obsidian";
 import { RelatedItem, ThinkResponse, callTool, parseToolResult } from "./core";
+import { exclusionPathForDeepen, isUnexpectedArgError, thinkArgs } from "./think-helpers";
 import { renderTrustBadge } from "./state";
 import {
   ReferenceRowDeps,
@@ -48,11 +49,17 @@ interface ThinkingFrame {
 export interface ThinkingDeps {
   getUrl(): string;
   hasThink(): boolean;
+  /** `think` advertises a `path` parameter — self-exclusion is sendable (KTD3). */
+  thinkAcceptsPath(): boolean;
+  /** Whether the load-time capability probe has settled (R26). */
+  probed(): boolean;
+  /** Resolves when the in-flight probe settles, so a pre-probe trigger can retry. */
+  probeReady(): Promise<void>;
   /** Shared reference-row deps (resolution, navigation, hover, menu, insertion). */
   rowDeps: ReferenceRowDeps;
 }
 
-type ThinkingState = "idle" | "loading" | "ready" | "unavailable" | "unreachable";
+type ThinkingState = "idle" | "probing" | "loading" | "ready" | "unavailable" | "unreachable";
 
 /** Adapt an engine `related` item (path / heading / neither) into the shared
  *  reference shape. An item with no usable path renders as a non-local row
@@ -140,9 +147,30 @@ export class ThinkingView extends ItemView {
     await this.loadTopic(topic, sourcePath);
   }
 
+  /** Engine URL changed: clear the result + back-stack to idle so back/deepen can't
+   *  mix two engines' corpora and a flipped path-capability can't leak (R27, KTD5). */
+  resetForEngineChange(): void {
+    this.stack = [];
+    this.response = null;
+    this.state = "idle";
+    this.topic = "";
+    this.sourcePath = "";
+    this.render();
+  }
+
   private async loadTopic(topic: string, sourcePath: string): Promise<void> {
     this.topic = topic;
     this.sourcePath = sourcePath;
+
+    // The load-time probe is fire-and-forget: a trigger before it settles must show
+    // a transient "checking…" and retry once it lands — never a false "unavailable"
+    // (R26). Await the single in-flight probe rather than starting a second (KTD4).
+    if (!this.deps.probed()) {
+      this.state = "probing";
+      this.response = null;
+      this.render();
+      await this.deps.probeReady();
+    }
 
     if (!this.deps.hasThink()) {
       this.state = "unavailable";
@@ -156,15 +184,30 @@ export class ThinkingView extends ItemView {
     this.render();
 
     try {
-      this.response = parseToolResult<ThinkResponse>(
-        await callTool(this.deps.getUrl(), "think", { topic }),
-      );
+      this.response = await this.fetchThink(topic, sourcePath);
       this.state = "ready";
     } catch {
       this.response = null;
       this.state = "unreachable";
     }
     this.render();
+  }
+
+  /** Call `think`, sending `path` for self-exclusion when supported (KTD3). If a
+   *  served schema omits `path`, the engine rejects the extra argument; classify
+   *  that and retry once without it. Any other failure propagates to "unreachable". */
+  private async fetchThink(topic: string, sourcePath: string): Promise<ThinkResponse | null> {
+    const args = thinkArgs(topic, sourcePath, this.deps.thinkAcceptsPath());
+    try {
+      return parseToolResult<ThinkResponse>(await callTool(this.deps.getUrl(), "think", args));
+    } catch (err) {
+      if ("path" in args && isUnexpectedArgError(err)) {
+        return parseToolResult<ThinkResponse>(
+          await callTool(this.deps.getUrl(), "think", thinkArgs(topic, sourcePath, false)),
+        );
+      }
+      throw err;
+    }
   }
 
   private get body(): HTMLElement {
@@ -204,6 +247,9 @@ export class ThinkingView extends ItemView {
     switch (this.state) {
       case "idle":
         banner.setText("Run “Think about this note or selection” to begin.");
+        return;
+      case "probing":
+        banner.setText("checking the engine…");
         return;
       case "loading":
         banner.setText("thinking…");
@@ -323,8 +369,10 @@ export class ThinkingView extends ItemView {
         deepen.setAttribute("aria-label", "Think deeper (depth limit reached)");
       } else {
         deepen.setAttribute("aria-label", `Think deeper about ${resolved.display.title}`);
+        // Exclude the deepened note itself — its own resolved path, or NO path for
+        // a non-local row (never the original note's path, the R16 mis-exclusion).
         deepen.addEventListener("click", () =>
-          void this.deepen(resolved.display.title, resolved.file?.path ?? this.sourcePath),
+          void this.deepen(resolved.display.title, exclusionPathForDeepen(resolved.file?.path)),
         );
       }
     }

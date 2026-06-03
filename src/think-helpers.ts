@@ -146,6 +146,47 @@ export function assertNoRpcError(body: unknown): void {
   }
 }
 
+// ───────────────────────────── think arguments (U3) ────────────────────────
+
+/**
+ * The `think` call arguments. Sends `path` for self-exclusion only when the
+ * engine advertises the parameter (KTD3) AND the source note has a real,
+ * non-empty path — an unsaved/empty note sends `{ topic }` only (origin R15-R17).
+ * Returns a plain `Record` so it flows straight into `callTool` and `"path" in
+ * args` can drive the send-and-retry fallback.
+ */
+export function thinkArgs(
+  topic: string,
+  sourcePath: string,
+  acceptsPath: boolean,
+): Record<string, unknown> {
+  if (acceptsPath && sourcePath.trim()) return { topic, path: sourcePath };
+  return { topic };
+}
+
+/**
+ * The exclusion path to use when deepening into a related row. A local row
+ * excludes its OWN resolved path; a non-local row (no resolvable file) sends no
+ * path — never the original note's path, which the old `?? this.sourcePath`
+ * fallback mistakenly re-sent (origin R16). Empty string ⇒ `thinkArgs` drops it.
+ */
+export function exclusionPathForDeepen(resolvedPath: string | undefined): string {
+  return resolvedPath ?? "";
+}
+
+/**
+ * Whether a tool-call rejection is an unknown/unexpected-argument validation
+ * error — the only trigger for retrying `think` without `path` (KTD3). A served
+ * schema that omits parameters rejects the extra `path`; any other failure
+ * (transport, rate-limit, internal) surfaces normally with no retry.
+ */
+export function isUnexpectedArgError(err: unknown): boolean {
+  if (!(err instanceof ToolCallError)) return false;
+  if (err.code === -32602) return true; // JSON-RPC "Invalid params"
+  const msg = (err.rpcMessage ?? err.message ?? "").toLowerCase();
+  return /unexpected|unknown|unrecognized|not a valid|no such|keyword argument/.test(msg);
+}
+
 // ───────────────────────────── tool-result parsing (U1) ─────────────────────
 
 /** FastMCP returns tool output as a content array of JSON text parts. Pure, and
