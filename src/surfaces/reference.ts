@@ -14,7 +14,15 @@
  * tests/test_obsidian_plugin.py asserts both (R26).
  */
 import { App, HoverParent, TFile, normalizePath, setIcon } from "obsidian";
-import { DisplayModel, ReferenceInput, ReferenceKind, displayModel, samePath } from "./reference-model";
+import {
+  DisplayModel,
+  ReferenceInput,
+  ReferenceKind,
+  displayModel,
+  referenceLabel,
+  samePath,
+  sectionBreadcrumb,
+} from "./reference-model";
 
 export interface ResolvedReference {
   input: ReferenceInput;
@@ -117,12 +125,16 @@ function renderLocalRow(
   deps: ReferenceRowDeps,
   hoverParent: HoverParent | null,
 ): HTMLElement {
+  const label = referenceLabel(ref.input);
   const link = host.createEl("a", {
     cls: "internal-link hypermnesic-ref-link",
-    text: ref.display.title,
+    text: label,
     href: "#",
   });
   link.setAttribute("aria-label", ariaLabel(ref));
+  // Titled (thinking) rows truncate the label at panel width (CSS); surface the
+  // full title as a tooltip too. Recall rows keep their existing (untitled) shape.
+  if (ref.input.title !== undefined) link.setAttribute("title", label);
   appendFolderAndHeading(host, ref);
 
   link.addEventListener("click", (evt) => {
@@ -172,7 +184,7 @@ function renderNonLocalRow(
   icon.setAttribute("aria-hidden", "true");
   setIcon(icon, "file-question");
 
-  row.createSpan({ cls: "hypermnesic-ref-title", text: ref.display.title });
+  row.createSpan({ cls: "hypermnesic-ref-title", text: referenceLabel(ref.input) });
   row.createSpan({ cls: "hypermnesic-not-in-vault", text: "not in this vault" });
   appendFolderAndHeading(host, ref);
 
@@ -185,13 +197,26 @@ function appendFolderAndHeading(host: HTMLElement, ref: ResolvedReference): void
   if (ref.display.folder) {
     host.createSpan({ cls: "hypermnesic-folder", text: ref.display.folder });
   }
-  if (ref.input.heading) {
+  if (ref.input.title !== undefined) {
+    // Titled (thinking) rows: a faint quoted "· in {section}" context subordinate
+    // to the title, suppressed when it would just repeat the title (origin R4).
+    const section = sectionBreadcrumb(ref.input);
+    if (section) {
+      host.createSpan({ cls: "hypermnesic-section-breadcrumb", text: ` · in “${section}”` });
+    }
+  } else if (ref.input.heading) {
+    // Recall rows keep the existing em-dash heading display, unchanged.
     host.createSpan({ cls: "hypermnesic-heading", text: ` — ${ref.input.heading}` });
   }
 }
 
 function ariaLabel(ref: ResolvedReference): string {
   const where = ref.display.folder ? `, in ${ref.display.folder}` : "";
+  if (ref.input.title !== undefined) {
+    const section = sectionBreadcrumb(ref.input);
+    const inSection = section ? `, in “${section}”` : "";
+    return `${referenceLabel(ref.input)}${inSection}${where}`;
+  }
   const heading = ref.input.heading ? `, ${ref.input.heading}` : "";
   return `${ref.display.title}${heading}${where}`;
 }
