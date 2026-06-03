@@ -9,6 +9,8 @@
  * network, mirroring the pure `reference-model.ts` ↔ edge `reference.ts` split.
  * `core.ts` re-exports the handshake pieces so existing importers are unchanged.
  */
+// Type-only (erased by esbuild → no runtime import of obsidian-importing core.ts).
+import type { UnlinkedPair } from "./core";
 
 // ───────────────────────────── tool-list parsing (U1) ───────────────────────
 
@@ -185,6 +187,34 @@ export function isUnexpectedArgError(err: unknown): boolean {
   if (err.code === -32602) return true; // JSON-RPC "Invalid params"
   const msg = (err.rpcMessage ?? err.message ?? "").toLowerCase();
   return /unexpected|unknown|unrecognized|not a valid|no such|keyword argument/.test(msg);
+}
+
+// ───────────────────────────── unlinked-pair guard (U4) ────────────────────
+
+/**
+ * Keep only the unlinked pairs worth rendering, comparing **resolved identity**
+ * (the injected `resolveIdentity` maps a path to its canonical file path when
+ * local, else its normalized engine path) rather than the raw `a_path`/`b_path`
+ * strings — so two spellings of one note are caught even if a non-compliant
+ * engine ignored `path` (R28, KTD6). Dropped: a pair whose sides resolve to the
+ * same note, a pair with a side equal to the active note, and a malformed pair
+ * with an empty-resolving side. A both-non-local pair is KEPT — it is valid
+ * engine output, just not navigable (rendered muted), so it is shown honestly.
+ */
+export function validPairs(
+  unlinked: UnlinkedPair[],
+  resolveIdentity: (path: string) => string,
+  sourcePath: string,
+): UnlinkedPair[] {
+  const self = resolveIdentity(sourcePath);
+  return (unlinked ?? []).filter((pair) => {
+    const a = resolveIdentity(pair.a_path);
+    const b = resolveIdentity(pair.b_path);
+    if (!a || !b) return false; // a side with no usable identity → malformed
+    if (a === b) return false; // same note under two spellings
+    if (self && (a === self || b === self)) return false; // a side is the active note
+    return true;
+  });
 }
 
 // ───────────────────────────── tool-result parsing (U1) ─────────────────────

@@ -10,6 +10,7 @@ import {
   exclusionPathForDeepen,
   isUnexpectedArgError,
   thinkArgs,
+  validPairs,
 } from "../src/think-helpers";
 
 describe("thinkArgs — send `path` only when supported and non-empty (Covers AE5; R15-R17)", () => {
@@ -67,5 +68,57 @@ describe("isUnexpectedArgError — classifies the bad-argument rejection for sen
   it("is false for a non-ToolCallError (a plain transport failure)", () => {
     expect(isUnexpectedArgError(new Error("network down"))).toBe(false);
     expect(isUnexpectedArgError(null)).toBe(false);
+  });
+});
+
+describe("validPairs — client-side pair guard on RESOLVED identity (Covers R28; KTD6)", () => {
+  // Emulate vault resolution: a couple of spellings resolve to one canonical file;
+  // unknown paths pass through unchanged (non-local — their own identity).
+  const resolve = (p: string): string =>
+    ({
+      "notes/a.md": "notes/a.md",
+      "a.md": "notes/a.md", // an alias spelling of the same note
+      "notes/b.md": "notes/b.md",
+      "notes/active.md": "notes/active.md",
+    })[p] ?? p;
+
+  it("keeps a normal pair of two distinct local notes", () => {
+    const pairs = validPairs(
+      [{ a_path: "notes/a.md", a_title: "A", b_path: "notes/b.md", b_title: "B" }],
+      resolve,
+      "notes/active.md",
+    );
+    expect(pairs).toHaveLength(1);
+  });
+
+  it("drops a same-note pair whose two spellings resolve to one file", () => {
+    const pairs = validPairs(
+      [{ a_path: "notes/a.md", b_path: "a.md" }],
+      resolve,
+      "notes/active.md",
+    );
+    expect(pairs).toHaveLength(0);
+  });
+
+  it("drops a pair where either side resolves to the active note", () => {
+    expect(
+      validPairs([{ a_path: "notes/active.md", b_path: "notes/b.md" }], resolve, "notes/active.md"),
+    ).toHaveLength(0);
+    expect(
+      validPairs([{ a_path: "notes/a.md", b_path: "notes/active.md" }], resolve, "notes/active.md"),
+    ).toHaveLength(0);
+  });
+
+  it("keeps a both-non-local pair (valid, just not navigable — rendered muted)", () => {
+    const pairs = validPairs(
+      [{ a_path: "ext/x.md", a_title: "X", b_path: "ext/y.md", b_title: "Y" }],
+      resolve,
+      "notes/active.md",
+    );
+    expect(pairs).toHaveLength(1);
+  });
+
+  it("drops a malformed pair with an empty-resolving side", () => {
+    expect(validPairs([{ a_path: "", b_path: "notes/b.md" }], resolve, "notes/active.md")).toHaveLength(0);
   });
 });

@@ -232,14 +232,13 @@
   padding-left: 8px;
   border-left: 2px solid var(--background-modifier-border);
 }
-.hypermnesic-thinking-questions {
-  border-left-color: var(--color-blue);
-}
-.hypermnesic-thinking-tensions {
-  border-left-color: var(--color-orange);
-}
 .hypermnesic-thinking-related {
   border-left-color: var(--color-green);
+}
+/* "Not yet linked" uses a neutral rail — never an alarm hue. An orange rail would
+   reassert the dropped "tension" framing this redesign removed (KTD8). */
+.hypermnesic-thinking-unlinked {
+  border-left-color: var(--background-modifier-border);
 }
 .hypermnesic-think-heading {
   margin: 0 0 4px;
@@ -254,12 +253,41 @@
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);
 }
-.hypermnesic-prose-list {
-  margin: 0;
-  padding-left: 18px;
+
+/* The single Socratic prompt: a quiet, un-railed line (no section rail). */
+.hypermnesic-think-question {
+  margin: 10px 0;
 }
-.hypermnesic-prose-list li {
-  margin: 3px 0;
+.hypermnesic-question-line {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.hypermnesic-question-line p {
+  margin: 2px 0;
+}
+
+/* Unlinked pairs: "A · B", titles truncate at panel width, the connective never
+   orphans (origin R8). Each side resolves independently (local link / muted). */
+.hypermnesic-unlinked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hypermnesic-unlinked-pair {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  max-width: 280px;
+}
+.hypermnesic-pair-side {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.hypermnesic-pair-connective {
+  flex: 0 0 auto;
+  color: var(--text-faint);
 }
 .hypermnesic-link-unresolved {
   color: var(--text-faint);

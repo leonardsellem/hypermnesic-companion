@@ -101,10 +101,6 @@ export interface ThinkResponse {
   degraded_lexical_only?: boolean;
   manual_reindex_recommended?: boolean;
   context?: unknown;
-  // Pre-#24 fields read transitionally until U4 removes the panel's references;
-  // kept optional so an old-engine response still type-parses.
-  tensions?: string[];
-  degraded?: boolean;
 }
 
 export interface ContextResponse {
