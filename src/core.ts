@@ -21,6 +21,19 @@ import { Editor, requestUrl } from "obsidian";
 import { rankHits } from "./ranking";
 import type { RankedHit } from "./ranking";
 import { HypermnesicSettings } from "./types";
+import type { Capabilities, RawTool } from "./think-helpers";
+import {
+  ToolCallError,
+  assertNoRpcError,
+  emptyCapabilities,
+  parseToolResult,
+  probeWithTimeout,
+} from "./think-helpers";
+
+// Re-export the pure handshake + parse helpers so existing importers
+// (thinking.ts, nudge.ts) keep importing them from "./core" unchanged (KTD9).
+export type { Capabilities, RawTool } from "./think-helpers";
+export { ToolCallError, emptyCapabilities, parseToolResult } from "./think-helpers";
 
 /**
  * Hard allowlist of callable MCP tools — mirrors the server's READ_TOOL_NAMES
@@ -51,16 +64,47 @@ export interface SearchResponse {
   hits: Hit[];
 }
 
+/** One related-note row from `think`: a real path plus the engine's H1 `title`
+ *  and the chunk `heading` the match came from. Everything past `path` is
+ *  optional so a leaner old-engine row still parses (origin R22, R23). */
+export interface RelatedItem {
+  path: string;
+  heading?: string;
+  /** Engine-resolved H1 title — the related-row label (origin R3, KTD1). */
+  title?: string;
+  snippet?: string;
+  score?: number;
+  channels?: string[];
+  recency?: number | null;
+}
+
+/** A co-retrieved-but-unlinked note pair from `think`; both sides carry a path
+ *  (navigable) and a title (the plain-text label). */
+export interface UnlinkedPair {
+  a_path: string;
+  a_title?: string;
+  b_path: string;
+  b_title?: string;
+}
+
 export interface ThinkResponse {
   topic: string;
-  /** Always false — the observable no-write assertion the engine emits. */
-  wrote: boolean;
-  related: Array<Record<string, unknown>>;
-  context: unknown;
+  /** The observable no-write assertion. Older engines omit it — `undefined`
+   *  degrades to the quiet read-only badge, not the write-flag warning (R29). */
+  wrote?: boolean;
+  related: RelatedItem[];
+  /** Co-retrieved unlinked pairs; absent on a pre-#24 engine ⇒ no pairs (R21). */
+  unlinked?: UnlinkedPair[];
   questions: string[];
-  tensions: string[];
-  degraded?: boolean;
+  /** Lexical-only fallback flag from the engine (replaces the never-emitted
+   *  `degraded` the old panel read). */
+  degraded_lexical_only?: boolean;
   manual_reindex_recommended?: boolean;
+  context?: unknown;
+  // Pre-#24 fields read transitionally until U4 removes the panel's references;
+  // kept optional so an old-engine response still type-parses.
+  tensions?: string[];
+  degraded?: boolean;
 }
 
 export interface ContextResponse {
@@ -107,25 +151,22 @@ export async function callTool(
       method: "tools/call",
       params: { name: tool, arguments: args },
     }),
+    throw: false,
   });
+  // Surface transport + JSON-RPC errors so a caller can classify a bad-argument
+  // rejection (KTD3, consumed by U3's send-and-retry) instead of silently
+  // parsing an error body to null. A clean body passes straight through.
+  if (res.status >= 400) {
+    throw new ToolCallError(`tool '${tool}' failed: HTTP ${res.status}`, res.status);
+  }
+  assertNoRpcError(res.json);
   return res.json;
 }
 
-/** FastMCP returns tool output as a content array of JSON text parts. */
-export function parseToolResult<T = unknown>(resp: unknown): T | null {
-  try {
-    const content = (resp as { result?: { content?: unknown[] } })?.result?.content ?? [];
-    const textPart = (content as Array<{ type?: string; text?: string }>).find(
-      (c) => c?.type === "text",
-    );
-    return textPart?.text ? (JSON.parse(textPart.text) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** tools/list for the capability handshake (KTD4). Empty URL → no probe. */
-export async function listTools(url: string): Promise<string[]> {
+/** tools/list for the capability handshake (KTD4). Empty URL → no probe. Returns
+ *  each tool's name + advertised `inputSchema` so `path` support is detectable
+ *  (KTD3) — pure parsing of that array lives in `capabilitiesFromTools`. */
+export async function listTools(url: string): Promise<RawTool[]> {
   if (!url.trim()) return [];
   const res = await requestUrl({
     url,
@@ -134,37 +175,21 @@ export async function listTools(url: string): Promise<string[]> {
     headers: RPC_HEADERS,
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
   });
-  const tools = (res.json as { result?: { tools?: Array<{ name?: string }> } })?.result?.tools ?? [];
-  return tools.map((t) => t?.name).filter((n): n is string => typeof n === "string");
+  const tools = (res.json as { result?: { tools?: RawTool[] } })?.result?.tools ?? [];
+  return Array.isArray(tools) ? tools : [];
 }
 
 // ───────────────────────────── capability handshake (KTD4) ──────────────────
 
-/** What the engine actually serves, discovered at load via tools/list. Surfaces
- *  light up or degrade from this instead of assuming an engine version. */
-export interface Capabilities {
-  /** The MCP endpoint answered the probe. */
-  reachable: boolean;
-  /** Tool names the server exposes. */
-  tools: Set<string>;
-  /** `think` is served (thinking-mode available). */
-  hasThink: boolean;
-  /** A real search hit carried a `recency` field (observed lazily). */
-  hitsCarryRecency: boolean;
-}
-
-export function emptyCapabilities(): Capabilities {
-  return { reachable: false, tools: new Set<string>(), hasThink: false, hitsCarryRecency: false };
-}
+/** Bound for a tools/list probe so a non-answering engine can't strand the panel
+ *  in "checking…" forever (R26); a timeout folds to unavailable-but-probed. */
+const PROBE_TIMEOUT_MS = 5000;
 
 export async function probeCapabilities(url: string): Promise<Capabilities> {
-  if (!url.trim()) return emptyCapabilities();
-  try {
-    const tools = new Set(await listTools(url));
-    return { reachable: true, tools, hasThink: tools.has("think"), hitsCarryRecency: false };
-  } catch {
-    return emptyCapabilities();
-  }
+  // No endpoint: the probe "ran" and found nothing — `probed:true` so the panel
+  // shows "unavailable", not a stuck "checking…".
+  if (!url.trim()) return { ...emptyCapabilities(), probed: true };
+  return probeWithTimeout(() => listTools(url), PROBE_TIMEOUT_MS);
 }
 
 // ───────────────────────────── cursor window (FR-R4) ────────────────────────
@@ -270,13 +295,32 @@ export interface CoreDeps {
 export class RetrievalCore {
   capabilities: Capabilities = emptyCapabilities();
   private cache: BlockCache<SearchResponse>;
+  /** The in-flight (or settled) load-time probe. The thinking panel awaits this
+   *  single promise rather than starting a second probe (KTD4, R26). */
+  private probePromise: Promise<void> | null = null;
 
   constructor(private deps: CoreDeps) {
     this.cache = new BlockCache<SearchResponse>(64);
   }
 
-  async probe(): Promise<void> {
-    this.capabilities = await probeCapabilities(this.deps.getUrl());
+  probe(): Promise<void> {
+    this.probePromise = (async () => {
+      this.capabilities = await probeCapabilities(this.deps.getUrl());
+    })();
+    return this.probePromise;
+  }
+
+  /** Resolves when the load-time probe settles (success OR failure). A caller that
+   *  triggers `think` before the fire-and-forget probe lands awaits this and then
+   *  retries — never a false "unavailable" (R26, KTD4). */
+  probeReady(): Promise<void> {
+    return this.probePromise ?? Promise.resolve();
+  }
+
+  /** Whether a probe has completed — distinguishes "not yet probed" (the panel's
+   *  transient "checking…") from "unavailable" (R26). */
+  get probed(): boolean {
+    return this.capabilities.probed;
   }
 
   cacheKey(text: string): string {

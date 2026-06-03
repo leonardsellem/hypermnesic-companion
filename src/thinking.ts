@@ -19,7 +19,7 @@ import {
   WorkspaceLeaf,
   setIcon,
 } from "obsidian";
-import { ThinkResponse, callTool, parseToolResult } from "./core";
+import { RelatedItem, ThinkResponse, callTool, parseToolResult } from "./core";
 import { renderTrustBadge } from "./state";
 import {
   ReferenceRowDeps,
@@ -57,7 +57,7 @@ type ThinkingState = "idle" | "loading" | "ready" | "unavailable" | "unreachable
 /** Adapt an engine `related` item (path / heading / neither) into the shared
  *  reference shape. An item with no usable path renders as a non-local row
  *  rather than crashing the renderer. */
-function toReferenceInput(related: Record<string, unknown>): ReferenceInput {
+function toReferenceInput(related: RelatedItem): ReferenceInput {
   const path = typeof related.path === "string" ? related.path : "";
   const heading = typeof related.heading === "string" ? related.heading : undefined;
   const snippet = typeof related.snippet === "string" ? related.snippet : undefined;
@@ -301,7 +301,7 @@ export class ThinkingView extends ItemView {
     });
   }
 
-  private renderRelatedSection(root: HTMLElement, related: Array<Record<string, unknown>>): void {
+  private renderRelatedSection(root: HTMLElement, related: RelatedItem[]): void {
     if (!related.length) return;
     const sec = root.createDiv({ cls: "hypermnesic-think-section hypermnesic-thinking-related" });
     this.sectionHeader(sec, "Related", related.length);
