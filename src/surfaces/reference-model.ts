@@ -15,6 +15,10 @@ export interface ReferenceInput {
   /** Engine-returned path (vault-root-relative when the corpora align). */
   path: string;
   heading?: string;
+  /** Engine-resolved H1 title (thinking-mode `related` rows). Present ⇒ the row
+   *  labels by title and shows the heading as a faint quoted breadcrumb; absent
+   *  (recall rows) ⇒ basename label + existing `— heading` display (KTD1). */
+  title?: string;
   /** ≤280-char engine snippet — the non-local peek's read-only stand-in. */
   snippet?: string;
 }
@@ -46,6 +50,36 @@ export function normalizeRefPath(path: string): string {
  */
 export function samePath(a: string, b: string): boolean {
   return normalizeRefPath(a) === normalizeRefPath(b);
+}
+
+/**
+ * The human label for a reference row: an engine H1 `title`, else the chunk
+ * `heading`, else the path basename (origin R3, AE1). Whitespace-only values are
+ * treated as absent. Returned verbatim — markdown / `[[wikilink]]` characters are
+ * NOT parsed, so the renderer can set it as plain text and never mint a
+ * create-on-click link (KTD2). Recall rows carry no `title`; the renderer keeps
+ * their basename label, so this chain only governs titled (thinking) rows.
+ */
+export function referenceLabel(input: ReferenceInput): string {
+  const title = input.title?.trim();
+  if (title) return title;
+  const heading = input.heading?.trim();
+  if (heading) return heading;
+  return displayModel(input.path).title;
+}
+
+/**
+ * The faint quoted "· in {section}" breadcrumb a *titled* row shows beneath its
+ * title — the chunk heading the match came from (origin R4). Null when there is
+ * no title (recall rows render the heading the existing way), when there is no
+ * heading, or when the heading merely repeats the title (suppress the duplicate).
+ */
+export function sectionBreadcrumb(input: ReferenceInput): string | null {
+  const title = input.title?.trim();
+  if (!title) return null;
+  const heading = input.heading?.trim();
+  if (!heading || heading === title) return null;
+  return heading;
 }
 
 /** Title (basename sans .md) + de-emphasized folder for a vault path. */
