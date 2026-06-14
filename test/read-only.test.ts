@@ -151,7 +151,7 @@ describe("read-only proof — real source", () => {
     expect(ref).not.toContain("@codemirror/state");
   });
 
-  it("group 5: default MCP URL is empty + guarded, and the homelab IP is gone", () => {
+  it("group 5: default MCP URL is empty + guarded, and the operator host is gone", () => {
     // Opt-in off-device send: the default URL is empty and callTool refuses to
     // reach the network with no endpoint, so a fresh install transmits nothing
     // until the user configures it.
@@ -160,9 +160,10 @@ describe("read-only proof — real source", () => {
     const core = readFileSync(join(ROOT, "src", "core.ts"), "utf8");
     expect(core).toContain("!url.trim()"); // empty-URL guard before any requestUrl
     // The removed hardcoded default never reappears anywhere in source.
+    const removedHardcodedHost = ["100", "103", "0", "55"].join(".");
     for (const [name, src] of Object.entries(allSources())) {
-      expect(src, `hardcoded IP reappeared in ${name}`).not.toContain(
-        "100.64.0.1",
+      expect(src, `hardcoded operator host reappeared in ${name}`).not.toContain(
+        removedHardcodedHost,
       );
     }
   });
