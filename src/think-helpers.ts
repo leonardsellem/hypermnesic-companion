@@ -85,19 +85,22 @@ export function capabilitiesFromTools(rawTools: RawTool[]): Capabilities {
 
 /**
  * Reject `p` after `ms` so a non-answering engine can't hang the probe forever.
- * `setTimeout`/`clearTimeout` are intentionally the bare globals, not the
- * `window.*` forms the Obsidian guideline prefers: this module is pure and runs
- * under vitest's node environment (KTD9), where `window` is absent.
+ * Uses `window.setTimeout`/`window.clearTimeout` per the Obsidian guideline
+ * (obsidianmd/prefer-window-timers). The module stays pure (no Obsidian import):
+ * under vitest's node environment `window` is absent, so `test/setup.ts` aliases
+ * `window` → `globalThis` (where the node timers live) so these helpers resolve
+ * without a DOM, while the browser/Obsidian runtime supplies the real `window`
+ * (KTD9).
  */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  // `window.setTimeout` returns a numeric handle in the DOM lib (the Obsidian
+  // runtime); the node-typed `Timeout` from @types/node would mismatch here.
+  let timer: number | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    // eslint-disable-next-line obsidianmd/prefer-window-timers -- pure cross-env helper; window is absent under vitest
-    timer = setTimeout(() => reject(new Error("hypermnesic: probe timed out")), ms);
+    timer = window.setTimeout(() => reject(new Error("hypermnesic: probe timed out")), ms);
   });
   return Promise.race([p, timeout]).finally(() => {
-    // eslint-disable-next-line obsidianmd/prefer-window-timers -- see above
-    clearTimeout(timer);
+    window.clearTimeout(timer);
   });
 }
 

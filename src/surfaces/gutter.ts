@@ -33,7 +33,7 @@ class RelatedCountWidget extends WidgetType {
     return other.n === this.n;
   }
   toDOM(): HTMLElement {
-    const el = document.createElement("span");
+    const el = activeDocument.createElement("span");
     el.className = "hypermnesic-inline-marker";
     el.setAttribute("aria-hidden", "true");
     el.title = `${this.n} related note${this.n === 1 ? "" : "s"}`;

@@ -291,7 +291,8 @@
 }
 .hypermnesic-link-unresolved {
   color: var(--text-faint);
-  text-decoration: line-through dotted;
+  text-decoration-line: line-through;
+  text-decoration-style: dotted;
   cursor: default;
 }
 

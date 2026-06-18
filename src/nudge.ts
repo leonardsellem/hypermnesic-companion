@@ -133,7 +133,7 @@ function extractReachable(context: unknown): string[] {
       .filter((s): s is string => s.length > 0);
   }
   if (context && typeof context === "object") {
-    return Object.keys(context as Record<string, unknown>);
+    return Object.keys(context);
   }
   return [];
 }
