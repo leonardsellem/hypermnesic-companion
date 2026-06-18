@@ -245,9 +245,14 @@ export class BlockCache<V> {
     if (this.map.has(k)) this.map.delete(k);
     this.map.set(k, value);
     while (this.map.size > this.maxEntries) {
-      const oldest: string | undefined = this.map.keys().next().value;
-      if (oldest === undefined) break;
-      this.map.delete(oldest);
+      // Evict the oldest (first-inserted) key. for-of over keys() yields the key
+      // type (string) directly, so there is no `IteratorResult.value` for the
+      // Obsidian review's no-unsafe-assignment to flag — its (older) TS types that
+      // `.value` as `any`; this construct avoids it in every TS/lib version.
+      for (const oldest of this.map.keys()) {
+        this.map.delete(oldest);
+        break;
+      }
     }
   }
   clear(): void {

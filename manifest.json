@@ -1,7 +1,7 @@
 {
 	"id": "hypermnesic-companion",
 	"name": "Hypermnesic Companion",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"minAppVersion": "1.7.2",
 	"description": "Surface read-only, pause-triggered related notes and an interrogable reinvention nudge from your tailnet hypermnesic index as you write. Never writes the vault.",
 	"author": "Leonard Sellem",
