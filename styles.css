@@ -291,8 +291,10 @@
 }
 .hypermnesic-link-unresolved {
   color: var(--text-faint);
-  text-decoration-line: line-through;
-  text-decoration-style: dotted;
+  /* Legacy single-value text-decoration (CSS1) — Obsidian's CSS review flags the
+     CSS3 text-decoration shorthand-with-style and the longhands as only partially
+     supported; the bare line-through keyword is universally supported. */
+  text-decoration: line-through;
   cursor: default;
 }
 
