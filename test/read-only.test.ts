@@ -195,6 +195,11 @@ describe("read-only proof — real source", () => {
     expect(manifest).toHaveProperty("version");
     expect(manifest).toHaveProperty("minAppVersion");
   });
+
+  it("group 9: requestUrl uses Obsidian's default completion behavior", () => {
+    const core = readFileSync(join(ROOT, "src", "core.ts"), "utf8");
+    expect(core).not.toContain("throw: false");
+  });
 });
 
 describe("read-only proof — guard bites (deliberately-failing fixtures)", () => {

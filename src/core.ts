@@ -147,14 +147,10 @@ export async function callTool(
       method: "tools/call",
       params: { name: tool, arguments: args },
     }),
-    throw: false,
   });
-  // Surface transport + JSON-RPC errors so a caller can classify a bad-argument
-  // rejection (KTD3, consumed by U3's send-and-retry) instead of silently
-  // parsing an error body to null. A clean body passes straight through.
-  if (res.status >= 400) {
-    throw new ToolCallError(`tool '${tool}' failed: HTTP ${res.status}`, res.status);
-  }
+  // Surface JSON-RPC errors so a caller can classify a bad-argument rejection
+  // (KTD3, consumed by U3's send-and-retry) instead of silently parsing an error
+  // body to null. HTTP failures use Obsidian's default requestUrl throw path.
   assertNoRpcError(res.json);
   return res.json;
 }
