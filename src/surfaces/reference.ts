@@ -257,7 +257,7 @@ export function enableRovingFocus(container: HTMLElement, focusables: HTMLElemen
   container.addEventListener("keydown", (evt: KeyboardEvent) => {
     if (evt.key !== "ArrowDown" && evt.key !== "ArrowUp") return;
     evt.preventDefault();
-    const current = focusables.findIndex((el) => el === document.activeElement);
+    const current = focusables.findIndex((el) => el === activeDocument.activeElement);
     const start = current < 0 ? 0 : current;
     const next = Math.max(0, Math.min(focusables.length - 1, start + (evt.key === "ArrowDown" ? 1 : -1)));
     focusables.forEach((el, i) => el.setAttribute("tabindex", i === next ? "0" : "-1"));

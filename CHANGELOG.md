@@ -5,6 +5,37 @@ All notable changes to Hypermnesic Companion are documented in this file.
 The format is based on Keep a Changelog, and this project uses the plugin
 manifest version as the release tag.
 
+## [0.3.1] - 2026-06-18
+
+Obsidian community-plugin review remediation (LS-1795): gets the Source, CSS, and
+Releases review sections green for the pending directory submission.
+
+### Changed
+
+- Raised `minAppVersion` to **1.7.2** to match the Obsidian API the plugin uses
+  (`Workspace.revealLeaf` became async in 1.7.2), clearing the review's
+  `no-unsupported-api` error.
+
+### Fixed
+
+- Cleared all Obsidian Source + CSS review findings: window-scoped timers
+  (`window.setTimeout` / `window.clearTimeout`), `activeDocument` for popout-window
+  compatibility, a narrowed block-cache type, native `node:module` builtins in the
+  bundler config, and longhand `text-decoration`. The corresponding lint rules are
+  restored to error severity so the findings can't silently regress.
+
+### Release
+
+- Release assets (`main.js`, `styles.css`) now carry **GitHub build-provenance
+  attestations** (verifiable with `gh attestation verify`), and releases ship with
+  notes generated from this changelog.
+
+### Documentation
+
+- Disclosed system-clipboard usage in the README: the plugin only **writes** the
+  clipboard on explicit "Copy as link" / "Copy path" actions and **never reads**
+  it. Clears the review's undisclosed-clipboard-behavior recommendation.
+
 ## [0.3.0] - 2026-06-14
 
 ### Added
