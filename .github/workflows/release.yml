@@ -9,9 +9,12 @@ on:
     tags:
       - '*'
 
-# Least privilege: creating the release and uploading assets is all this needs.
+# Release needs: write the release + assets (contents), and mint an OIDC token +
+# write artifact attestations (id-token + attestations) for build provenance.
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -36,6 +39,35 @@ jobs:
         run: |
           [ -f styles.css ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
+      # Build-provenance attestations so the published assets verifiably trace to
+      # this repo + workflow run (`gh attestation verify <asset>`). Clears the
+      # Obsidian review's "missing artifact attestations" recommendation. main.js
+      # is built above; styles.css is a committed source file — both always exist.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            styles.css
+
+      # Repeatable release notes: extract this tag's section from CHANGELOG.md so
+      # every release carries a description (Keep a Changelog format).
+      - name: Build release notes
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          # awk extracts this tag's section from CHANGELOG.md (single quotes are
+          # required so $0 stays an awk field, not a shell variable).
+          section="$(awk -v ver="$tag" '$0 ~ "^## \\[" ver "\\]" {flag=1; print; next} /^## \[/ {flag=0} flag {print}' CHANGELOG.md)"
+          {
+            if [ -n "$section" ]; then
+              printf '%s\n\n' "$section"
+            else
+              printf '## %s\n\nSee CHANGELOG.md.\n\n' "$tag"
+            fi
+            printf 'Release assets (main.js, styles.css) carry GitHub build-provenance attestations. Verify with: gh attestation verify <asset> --repo %s\n' "$GITHUB_REPOSITORY"
+          } > release-notes.md
+          echo "--- release-notes.md ---"; cat release-notes.md
+
       - name: Create release with individual assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -43,5 +75,6 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
           gh release create "$tag" \
             --title="$tag" \
+            --notes-file release-notes.md \
             --draft \
             main.js manifest.json ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
