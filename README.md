@@ -4,9 +4,7 @@ Surface read-only, pause-triggered related notes and an interrogable reinvention
 nudge from your tailnet **hypermnesic** index as you write — a calm, **desktop**
 recall surface that **never writes your vault**.
 
-<!-- TODO(LS-1782): add docs/media/demo.gif (pause-triggered status-bar recall popover) as the top hero once recorded. -->
-
-![Thinking-mode panel — related notes, Socratic questions, and a visible read-only `wrote: false` badge](docs/media/thinking-mode.png)
+![Pause-triggered recall — as you write, related notes surface in the read-only companion](docs/media/demo.gif)
 
 ## What it does
 
@@ -32,6 +30,11 @@ recall surface that **never writes your vault**.
   ones you just touched.
 
 ## Screenshots
+
+**Thinking-mode panel** — a dockable panel (like Backlinks/Outline) with related notes,
+Socratic questions, and a visible `wrote: false` read-only badge.
+
+![Thinking-mode panel — related notes, Socratic questions, and a read-only wrote:false badge](docs/media/thinking-mode.png)
 
 **Opt-in recall sidebar** — every related note is a first-class `internal-link`
 (hover for page-preview, right-click for open / think / copy), with meaning + document
