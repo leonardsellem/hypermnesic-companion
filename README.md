@@ -4,6 +4,10 @@ Surface read-only, pause-triggered related notes and an interrogable reinvention
 nudge from your tailnet **hypermnesic** index as you write — a calm, **desktop**
 recall surface that **never writes your vault**.
 
+<!-- TODO(LS-1782): add docs/media/demo.gif (pause-triggered status-bar recall popover) as the top hero once recorded. -->
+
+![Thinking-mode panel — related notes, Socratic questions, and a visible read-only `wrote: false` badge](docs/media/thinking-mode.png)
+
 ## What it does
 
 - **Pause-triggered** recall (never per-keystroke) of the block around your
@@ -26,6 +30,23 @@ recall surface that **never writes your vault**.
   (view-only — muting is plugin-local and never edits the note).
 - **Forgetting-curve ranking**: genuinely stale-but-relevant notes surface above
   ones you just touched.
+
+## Screenshots
+
+**Opt-in recall sidebar** — every related note is a first-class `internal-link`
+(hover for page-preview, right-click for open / think / copy), with meaning + document
+match chips. All read-only.
+
+![Recall sidebar with first-class internal-link references](docs/media/sidebar.png)
+
+**Interrogable reinvention nudge** — "You may be reinventing…" expands to the matched
+snippet and a context peek so the claim is *checkable*, and it's mutable per note
+(view-only — muting never edits the note).
+
+![Reinvention nudge expanded to its matched snippet](docs/media/reinvention-nudge.png)
+
+> Screenshots are captured against a disposable demo vault. The companion shows only the
+> placeholder `tailnet` endpoint and retains no note text.
 
 ## Read-only by construction
 
