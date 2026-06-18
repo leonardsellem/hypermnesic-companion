@@ -44,7 +44,7 @@ jobs:
       # Obsidian review's "missing artifact attestations" recommendation. main.js
       # is built above; styles.css is a committed source file — both always exist.
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             main.js
