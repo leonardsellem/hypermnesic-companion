@@ -240,7 +240,7 @@ export default class HypermnesicPlugin extends Plugin {
       if (!leaf) return null;
       await leaf.setViewState({ type: THINKING_VIEW_TYPE, active: true });
     }
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
     return leaf.view instanceof ThinkingView ? leaf.view : null;
   }
 
@@ -437,13 +437,13 @@ export default class HypermnesicPlugin extends Plugin {
   async activateSidebar(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      void this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getRightLeaf(false);
     if (leaf) {
       await leaf.setViewState({ type: SIDEBAR_VIEW_TYPE, active: true });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
     }
   }
 

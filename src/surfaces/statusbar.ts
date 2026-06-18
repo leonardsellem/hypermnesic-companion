@@ -65,13 +65,13 @@ export class StatusBarSurface {
   }
 
   private open(): void {
-    this.popover = document.body.createDiv({ cls: "hypermnesic-popover" });
+    this.popover = activeDocument.body.createDiv({ cls: "hypermnesic-popover" });
     this.popover.setAttribute("role", "dialog");
     this.popover.setAttribute("aria-label", "hypermnesic related notes");
     this.position();
     this.renderPopover();
     // Defer so the opening click does not immediately close it.
-    window.setTimeout(() => document.addEventListener("click", this.onOutside, true), 0);
+    window.setTimeout(() => activeDocument.addEventListener("click", this.onOutside, true), 0);
   }
 
   private onOutside = (evt: MouseEvent): void => {
@@ -82,7 +82,7 @@ export class StatusBarSurface {
   };
 
   private close(): void {
-    document.removeEventListener("click", this.onOutside, true);
+    activeDocument.removeEventListener("click", this.onOutside, true);
     this.popover?.remove();
     this.popover = null;
   }

@@ -245,7 +245,7 @@ export class BlockCache<V> {
     if (this.map.has(k)) this.map.delete(k);
     this.map.set(k, value);
     while (this.map.size > this.maxEntries) {
-      const oldest = this.map.keys().next().value;
+      const oldest: string | undefined = this.map.keys().next().value;
       if (oldest === undefined) break;
       this.map.delete(oldest);
     }
