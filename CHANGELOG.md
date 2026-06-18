@@ -30,6 +30,12 @@ Releases review sections green for the pending directory submission.
   attestations** (verifiable with `gh attestation verify`), and releases ship with
   notes generated from this changelog.
 
+### Documentation
+
+- Disclosed system-clipboard usage in the README: the plugin only **writes** the
+  clipboard on explicit "Copy as link" / "Copy path" actions and **never reads**
+  it. Clears the review's undisclosed-clipboard-behavior recommendation.
+
 ## [0.3.0] - 2026-06-14
 
 ### Added
