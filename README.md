@@ -72,6 +72,20 @@ tailnet; the companion only reads it.
 > a public interface) removes all access control and lets **any host that can
 > reach that URL** read your vault index. Configure only a Tailscale address.
 
+## Clipboard use
+
+The plugin **writes** to the system clipboard in exactly two places, both behind
+an explicit action in a related note's right-click menu:
+
+- **Copy as link** — copies a vault-correct Obsidian link to the related note
+  (the same text that drag-to-insert would drop).
+- **Copy path** — for a note that isn't in your vault, copies its engine path.
+
+It writes **only** the text you asked it to copy, **only** when you click those
+menu items, and it **never reads** the clipboard (no clipboard-read, no paste
+interception) — so it cannot observe anything you copied elsewhere. These two
+writes are the plugin's only system-clipboard access.
+
 ## Build & install (manual, desktop)
 
 ```bash
